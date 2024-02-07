@@ -593,7 +593,7 @@ class TabsRouter extends RoutingController {
   /// if activeIndex != homeIndex
   /// set activeIndex to homeIndex
   /// else pop parent
-  final int homeIndex;
+  int homeIndex;
 
   /// Default constructor
   TabsRouter(
@@ -673,11 +673,7 @@ class TabsRouter extends RoutingController {
   @optionalTypeArgs
   Future<bool> pop<T extends Object?>([T? result]) {
     if (homeIndex != -1 && _activeIndex != homeIndex) {
-      if (previousIndex != null && previousIndex != homeIndex) {
-        setActiveIndex(previousIndex!);
-      } else {
-        setActiveIndex(homeIndex);
-      }
+      setActiveIndex(homeIndex);
       return SynchronousFuture<bool>(true);
     } else if (_parent != null) {
       return _parent!.pop<T>(result);
@@ -685,6 +681,22 @@ class TabsRouter extends RoutingController {
       return SynchronousFuture<bool>(false);
     }
   }
+  // @override
+  // @optionalTypeArgs
+  // Future<bool> pop<T extends Object?>([T? result]) {
+  //   if (homeIndex != -1 && _activeIndex != homeIndex) {
+  //     if (previousIndex != null && previousIndex != homeIndex) {
+  //       setActiveIndex(previousIndex!);
+  //     } else {
+  //       setActiveIndex(homeIndex);
+  //     }
+  //     return SynchronousFuture<bool>(true);
+  //   } else if (_parent != null) {
+  //     return _parent!.pop<T>(result);
+  //   } else {
+  //     return SynchronousFuture<bool>(false);
+  //   }
+  // }
 
   /// Pushes given [routes] to [_pages] stack
   /// after match validation and deciding initial index
