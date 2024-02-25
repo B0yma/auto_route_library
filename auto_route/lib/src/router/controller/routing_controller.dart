@@ -13,11 +13,8 @@ import 'package:flutter/material.dart';
 import 'package:meta/meta.dart';
 
 part '../../route/route_data.dart';
-
 part 'auto_route_guard.dart';
-
 part 'auto_router_delegate.dart';
-
 part 'root_stack_router.dart';
 
 // ignore_for_file: deprecated_member_use_from_same_package
@@ -312,8 +309,9 @@ abstract class RoutingController with ChangeNotifier {
 
   _RouterScopeResult<T>? _findPathScopeOrReportFailure<T extends RoutingController>(String path,
       {bool includePrefixMatches = false, OnNavigationFailure? onFailure}) {
-    final routers =
-        _topMostRouter(ignorePagelessRoutes: true)._buildRoutersHierarchy().whereType<T>();
+    final routers = _topMostRouter(ignorePagelessRoutes: true)
+        ._buildRoutersHierarchy()
+        .whereType<T>();
 
     for (var router in routers) {
       final matches = router.matcher.match(
@@ -593,7 +591,7 @@ class TabsRouter extends RoutingController {
   /// if activeIndex != homeIndex
   /// set activeIndex to homeIndex
   /// else pop parent
-  int homeIndex;
+  final int homeIndex;
 
   /// Default constructor
   TabsRouter(
@@ -681,22 +679,6 @@ class TabsRouter extends RoutingController {
       return SynchronousFuture<bool>(false);
     }
   }
-  // @override
-  // @optionalTypeArgs
-  // Future<bool> pop<T extends Object?>([T? result]) {
-  //   if (homeIndex != -1 && _activeIndex != homeIndex) {
-  //     if (previousIndex != null && previousIndex != homeIndex) {
-  //       setActiveIndex(previousIndex!);
-  //     } else {
-  //       setActiveIndex(homeIndex);
-  //     }
-  //     return SynchronousFuture<bool>(true);
-  //   } else if (_parent != null) {
-  //     return _parent!.pop<T>(result);
-  //   } else {
-  //     return SynchronousFuture<bool>(false);
-  //   }
-  // }
 
   /// Pushes given [routes] to [_pages] stack
   /// after match validation and deciding initial index
@@ -1010,6 +992,24 @@ abstract class StackRouter extends RoutingController {
   @override
   RouteData get current => currentChild ?? routeData;
 
+  /// Get the top [Route<dynamic>] of Navigator
+  /// Used to assess the current route and popDisposition
+  Route<dynamic> get _navigatorTopRoute {
+    late Route<dynamic> route;
+    popUntil((r) {
+      route = r;
+      return true;
+    });
+    return route;
+  }
+
+  /// Get the popDisposition of the top [Route<dynamic>] of Navigator
+  RoutePopDisposition get _popDisposition => _navigatorTopRoute.popDisposition;
+
+  /// Check if current is currently visible
+  bool get currentVisible =>
+      _navigatorTopRoute.settings.name == current.route.name;
+
   @override
   RouteData? get currentChild {
     if (_pages.isNotEmpty) {
@@ -1095,11 +1095,30 @@ abstract class StackRouter extends RoutingController {
     }
   }
 
+  /// If the [RoutePopDisposition] of the top-most route is [RoutePopDisposition.doNotPop]
+  /// this method will call maybePop instead of .back().
+  ///
+  /// Useful with PopScope widget.
+  Future<bool> maybeBack() async {
+    final NavigatorState? navigator = _navigatorKey.currentState;
+    if (navigator == null) return SynchronousFuture<bool>(false);
+
+    if (_popDisposition == RoutePopDisposition.doNotPop) {
+      return await navigator.maybePop();
+    }
+
+    navigationHistory.back();
+    return true;
+  }
+
   @override
   @optionalTypeArgs
   Future<bool> pop<T extends Object?>([T? result]) async {
     final NavigatorState? navigator = _navigatorKey.currentState;
     if (navigator == null) return SynchronousFuture<bool>(false);
+    // On the web, popping will not update the navigation history
+    // use maybeBack when a result does not need to be returned.
+    // Checks isCurrent to avoid going back when dialog is open.
     if (await navigator.maybePop<T>(result)) {
       return true;
     } else if (_parent != null) {
